@@ -588,6 +588,11 @@ CyborgWeapons_Deployable_OozeAtk = Punch:new{
 	Description = "Slam a gelatinous body into a target.",	--push self into target
 	Damage=0,
 	PowerCost = 0,
+	TipImage = {
+		Unit = Point(1,2),
+		Target = Point(1,1),
+		Enemy = Point(1,1),
+	},
 }
 
 function CyborgWeapons_Deployable_MediumOoze:GetDeathEffect(point)
@@ -1280,11 +1285,13 @@ function CyborgWeapons_Pheromones:GetFinalEffect(p1, p2, p3)
 	while step == -1 and not Board:IsValid(Point(p1 + DIR_VECTORS[dir] * i)) do
 		i=i-1
 	end
-	LOG(i)
 	while true do
-		
 		local curr = Point(p1 + DIR_VECTORS[dir] * i)
-		if not Board:IsValid(curr) or Board:GetTerrain(curr) == TERRAIN_MOUNTAIN or Board:IsBuilding(curr) or curr == p1 then break end
+		if not Board:IsValid(curr) or 
+		   ((Board:GetTerrain(curr) == TERRAIN_MOUNTAIN or Board:IsBuilding(curr)) and step == 1) or 	--we need to check step == 1; if it's -1, we would stop when going backwards and meeting terrain before pushing stuff that should be
+		   curr == p1 then --this stops us when step == -1
+			break 
+		end
 		local damage = SpaceDamage(curr, 0)
 		local toAffect = Board:GetPawn(curr)
 		if toAffect and (toAffect:GetClass() == "TechnoVek" or toAffect:GetTeam() == TEAM_ENEMY) then
@@ -1293,7 +1300,6 @@ function CyborgWeapons_Pheromones:GetFinalEffect(p1, p2, p3)
 				damage.sScript = string.format("Board:GetPawn(%s):AddMoveBonus(1)", Board:GetPawn(curr):GetId())
 				ret:AddScript(string.format("Board:GetPawn(%s):SetMovementSpent(false)", Board:GetPawn(curr):GetId()))
 			end
-			--if self.TwoClick then damage.iPush = pushDirection end	--should always happen?
 			if self.Dance then ret:AddScript(string.format("Board:GetPawn(%s):SetActive(true)", Board:GetPawn(curr):GetId())) end
 		end
 		damage.sAnimation = "HypnoticPheromone"
@@ -1460,10 +1466,13 @@ CyborgWeapons_Bloodlust = Skill:new{
 	UpgradeCost = { 2 , 3 },
 	TipImage = {
 		Unit = Point(2,2),
-		Enemy = Point(2,1),
+		Enemy_Damaged = Point(2,1),
+		Enemy2 = Point(2,3),
+		Enemy3 = Point(1,2),
+		Enemy4 = Point(3,2),
 		Target = Point(2,1),
 		CustomPawn = "BeetleMech",
-		CustomEnemy = "Leaper1",
+		CustomEnemy = "Centipede2",
 	},
 }
 
@@ -1474,7 +1483,7 @@ CyborgWeapons_Bloodlust_A = CyborgWeapons_Bloodlust:new{
 }
 
 CyborgWeapons_Bloodlust_B = CyborgWeapons_Bloodlust:new{	
-	UpgradeDescription = "Attacks every adjacent biological damaged target.",
+	UpgradeDescription = "Attacks every adjacent biological unit.",
 	Multistrike = true,
 }
 
@@ -1499,9 +1508,16 @@ function CyborgWeapons_Bloodlust:GetSkillEffect(p1, p2)
 	local ret = SkillEffect()
 	local direction = GetDirection(p2 - p1)
 	local target = Board:GetPawn(p2)
-	
 	local damage = SpaceDamage(p2)
-	damage.sAnimation="ExploBloodyStream"
+	
+	-- if Board:GetSize() == Point(6, 6) then	
+		-- local tipImageHelper = SpaceDamage(Point(2,1),1)
+		-- tipImageHelper.bHide = true
+		-- ret:AddDamage(tipImageHelper)
+		-- ret:AddDelay(1)
+	-- end
+	
+	damage.sAnimation="SwipeClaw"..self.MinDamage-1	--makes the animation bigger when upgraded
 	
 	if self.Multistrike then
 		for i = DIR_START, DIR_END do
@@ -1510,6 +1526,7 @@ function CyborgWeapons_Bloodlust:GetSkillEffect(p1, p2)
 				damage.loc = p1 + DIR_VECTORS[i]
 				if (target:GetClass() == "TechnoVek" or (target:GetTeam() == TEAM_ENEMY and target:GetTeam() ~= TEAM_BOTS)) and target:IsDamaged() then
 					damage.iDamage = self.Damage
+					ret:AddAnimation(p1 + DIR_VECTORS[i], "ExploBloodyStream")	--when hitting for extra damage, we add a burst of blood
 				else
 					damage.iDamage = self.MinDamage
 				end
@@ -1522,6 +1539,7 @@ function CyborgWeapons_Bloodlust:GetSkillEffect(p1, p2)
 		if target then
 			if (target:GetClass() == "TechnoVek" or (target:GetTeam() == TEAM_ENEMY and target:GetTeam() ~= TEAM_BOTS)) and target:IsDamaged() then
 				damage.iDamage = self.Damage
+				ret:AddAnimation(p2, "ExploBloodyStream")
 			else
 				damage.iDamage = self.MinDamage
 			end
