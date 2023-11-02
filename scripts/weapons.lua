@@ -544,8 +544,7 @@ function CyborgWeapons_Ooze:GetTargetArea(point)
 	
 	for i = DIR_START, DIR_END do
 		local curr = point + DIR_VECTORS[i]
-		if Board:IsValid(curr) and not Board:IsBlocked(curr, 195) then ret:push_back(curr) end
-		--195 = 1 + 2 + 64 + 128, pathing profile for flier, massive, enemy, bots
+		if Board:IsValid(curr) and not Board:IsBlocked(curr, PATH_PROJECTILE) then ret:push_back(curr) end
 	end
 	
 	return ret
@@ -666,7 +665,7 @@ CyborgWeapons_Burrowing = Skill:new{
 	Explosion = "",
 	Damage = 0,
 	PathSize = 1,
-	PowerCost = 0, --AE Change
+	PowerCost = 0,
 	WideArea = 1,
 	Push = 1,--TOOLTIP HELPER,
 	Range = 1,--TOOLTIP HELPER
@@ -681,6 +680,7 @@ CyborgWeapons_Burrowing = Skill:new{
 		Target = Point(1,2),
 		Enemy = Point(3,2),
 		Enemy2 = Point(2,1),
+		CustomPawn="BeetleMech",
 	},
 }
 
@@ -693,11 +693,9 @@ function CyborgWeapons_Burrowing:GetTargetArea(p1)
 		--When we meet a tile with stuff on it, we can't emerge, unless it's a pawn and we have the second upgrade.
 		for i = 1,7 do
 			local point2 = p1 + DIR_VECTORS[dir]*i
-			if not Board:IsValid(point2) or Board:GetTerrain(point2) == TERRAIN_WATER or Board:GetTerrain(point2) == TERRAIN_LAVA then break end
-			if not Board:IsBuilding(point2) and Board:GetTerrain(point2) ~= TERRAIN_MOUNTAIN then
-				if not Board:GetPawn(point2) or self.CanAttackPawns then 
-					ret:push_back(point2) 
-				end
+			if not Board:IsValid(point2) or Board:GetTerrain(point2) == TERRAIN_WATER or Board:GetTerrain(point2) == TERRAIN_HOLE then break end	--can't dig past the board/water/lava/holes
+			if not Board:IsBuilding(point2) and Board:GetTerrain(point2) ~= TERRAIN_MOUNTAIN then													--can't emerge from mountains/buildings but can go past them
+				if not Board:GetPawn(point2) or self.CanAttackPawns then ret:push_back(point2) end													--can only emerge from pawns with the upgrade
 			end
 		end
 	end
@@ -711,7 +709,7 @@ function CyborgWeapons_Burrowing:GetSecondTargetArea(p1, p2)
 	for i = DIR_START,DIR_END do
 		--for each tile adjacent to the pawn
 		local curr = p2 + DIR_VECTORS[i]
-		if Board:IsValid(curr) and not Board:IsBlocked(curr, 192) then 
+		if Board:IsValid(curr) and not Board:IsBlocked(curr, PATH_PROJECTILE) then 
 			--if valid and something the user can stand on, we return it
 			ret:push_back(curr) 
 		end
@@ -1038,15 +1036,11 @@ function CyborgWeapons_EvolvingBonespear0:GetTargetArea(point)
 	for dir = DIR_START, DIR_END do
 		for i = 1, 8 do
 			local curr = Point(point + DIR_VECTORS[dir] * i)
-			if not Board:IsValid(curr) then
-				break
-			end
+			if not Board:IsValid(curr) then break end
 			
 			ret:push_back(curr)
 			
-			if Board:IsBlocked(curr,PATH_PHASING) then
-				break
-			end
+			if Board:IsBlocked(curr,PATH_PHASING) then break end
 		end
 	end
 	--if not Board:GetPawn(point):IsActive() then ret:push_back(point) end
@@ -1440,7 +1434,7 @@ ANIMS.frighteningPheromoneAnim = Animation:new{
 -------------
 --Bloodlust--
 -------------
---Hit damaged targets harder; can upgrade to hit even harder and hit all damaged targets*
+--Hit damaged targets harder; can upgrade to hit even harder and hit all damaged targets
 modApi:addWeaponDrop("CyborgWeapons_Bloodlust")
 
 CyborgWeapons_Bloodlust = Skill:new{  
@@ -1510,13 +1504,6 @@ function CyborgWeapons_Bloodlust:GetSkillEffect(p1, p2)
 	local target = Board:GetPawn(p2)
 	local damage = SpaceDamage(p2)
 	
-	-- if Board:GetSize() == Point(6, 6) then	
-		-- local tipImageHelper = SpaceDamage(Point(2,1),1)
-		-- tipImageHelper.bHide = true
-		-- ret:AddDamage(tipImageHelper)
-		-- ret:AddDelay(1)
-	-- end
-	
 	damage.sAnimation="SwipeClaw"..self.MinDamage-1	--makes the animation bigger when upgraded
 	
 	if self.Multistrike then
@@ -1548,4 +1535,79 @@ function CyborgWeapons_Bloodlust:GetSkillEffect(p1, p2)
 	end
 	return ret
 end	
+
+--this is apparently something Pilot_Arrogant already made for Unfair Tweaks -_-
+--The script doesn't quite work anyway
+-- modApi:addWeaponDrop("CyborgWeapons_Provoke")
+
+-- CyborgWeapons_Provoke = Skill:new{  
+	-- Name = "Provoke",
+	-- Class = "TechnoVek",
+	-- Icon = "weapons/Provoke.png",
+	-- Description = "Force a target to attack in a chosen direction.",
+	-- TwoClick = true,
+	-- Rarity = 0,
+	-- LaunchSound = "/weapons/titan_fist",
+	-- UpShot = "effects/shotup_provoke.png",
+	-- Damage = 3,
+	-- Range = 1, -- Tooltip?
+	-- PathSize = 1,
+	-- PushBack = false,
+	-- Flip = false,
+	-- Dash = false,
+	-- Shield = false,
+	-- Projectile = false,
+	-- Push = 1,
+	-- PowerCost = 1,
+	-- Upgrades = 0,
+	-- TipImage = {
+		-- Unit = Point(2,2),
+		-- Enemy_Damaged = Point(2,1),
+		-- Enemy2 = Point(2,3),
+		-- Enemy3 = Point(1,2),
+		-- Enemy4 = Point(3,2),
+		-- Target = Point(2,1),
+		-- CustomPawn = "BeetleMech",
+		-- CustomEnemy = "Centipede2",
+	-- },
+-- }
+
+-- function CyborgWeapons_Provoke:GetTargetArea(point)
+	-- local ret = PointList()
+	-- for dir = DIR_START, DIR_END do
+		-- for i = 2, 8 do
+			-- local curr = Point(point + DIR_VECTORS[dir] * i)
+			-- if not Board:IsValid(curr) then break end
+			-- if Board:GetPawn(curr) and Board:GetPawn(curr):GetTeam() == TEAM_ENEMY and not Board:GetPawn(curr):GetMechName():find("Psion") then ret:push_back(curr) end
+		-- end
+	-- end
+	-- return ret
+-- end
+
+-- function CyborgWeapons_Provoke:GetSecondTargetArea(p1, p2)
+	-- local ret = PointList()
+	-- for dir = DIR_START, DIR_END do
+		-- if Board:IsValid(p2 + DIR_VECTORS[dir]) then ret:push_back(p2 + DIR_VECTORS[dir]) end
+	-- end
+	-- return ret
+-- end
+
+-- function CyborgWeapons_Provoke:GetSkillEffect(p1, p2)
+	-- local ret = SkillEffect()
+	-- ret:AddArtillery(p1, SpaceDamage(p2), self.UpShot, PROJ_DELAY)
+	-- return ret
+-- end	
+				
+-- function CyborgWeapons_Provoke:GetFinalEffect(p1, p2, p3)
+	-- local ret = SkillEffect()
+	-- local direction = GetDirection(p3 - p2)
+	-- local target = Board:GetPawn(p2)
+	-- ret:AddArtillery(p1, SpaceDamage(p2), self.UpShot, PROJ_DELAY)
+	-- ret:AddScript([[
+	-- j = 1
+	-- while not target:FireWeapon(]]..(p2 + DIR_VECTORS[direction] * j):GetString()..[[, 1) and Board:IsValid(]]..(p2 + DIR_VECTORS[direction] * j):GetString()..[[) do
+		-- j=j+1
+	-- end]])
+	-- return ret
+-- end	
 
