@@ -9,6 +9,11 @@ local mod = {
 	gameVersion = "1.2.88",
 	icon = "img/mod_icon.png",
 	description = description,
+	dependencies = {
+		modApiExt = "1.18",
+		memedit = "1.0.2",
+		easyEdit = "2.0.4",
+	},
 }
 
 function mod:init()
