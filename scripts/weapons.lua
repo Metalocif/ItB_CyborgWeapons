@@ -375,8 +375,8 @@ CyborgWeapons_BloodyStream = TankDefault:new{
 	Push = 1, --Mostly for tooltip, but you could turn it off for some unknown reason
 	PowerCost = 0, --AE Change
 	Upgrades = 2,
-	UpgradeList = { "+1 Shot",  "+1 Shot"  },
-	UpgradeCost = { 1 , 1 },
+	UpgradeList = { "+1 Shot",  "+2 Shots"  },
+	UpgradeCost = { 1 , 2 },
 	TipImage = {
 		Unit = Point(2,4),
 		Enemy = Point(2,2),
@@ -418,7 +418,6 @@ function CyborgWeapons_BloodyStream:GetSkillEffect(p1, p2, remainingShots)
 			]]);
 			Board:AddEffect(fx);
 		]=], self.Self, p1:GetString(), p2:GetString(), remainingShots))
-		-- ret:AddScript(string.format(Board:AddEffect(_G[%q]:GetSkillEffect(%s, %s, %s)), self.Self, p1:GetString(), p2:GetString(), remainingShots))
 	end
 	return ret
 end	
@@ -429,12 +428,12 @@ CyborgWeapons_BloodyStream_A = CyborgWeapons_BloodyStream:new{
 }
 
 CyborgWeapons_BloodyStream_B = CyborgWeapons_BloodyStream:new{	
-	UpgradeDescription = "Adds an extra shot, independant of remaining health.",
-	ExtraShots = 1,
+	UpgradeDescription = "Adds two extra shots, independant of remaining health.",
+	ExtraShots = 2,
 }
 
 CyborgWeapons_BloodyStream_AB = CyborgWeapons_BloodyStream:new{
-	ExtraShots = 2,
+	ExtraShots = 3,
 }
 
 --------------
@@ -539,7 +538,7 @@ CyborgWeapons_Ooze = Skill:new{
 	Deployed = "CyborgWeapons_Deployable_MediumOoze",
 	--Projectile = "effects/shotup_tank.png",
 	
-	PowerCost = 2,
+	PowerCost = 1,
 	Upgrades = 2,
 	UpgradeCost = {1,1},
 	UpgradeList = { "+1 Small Blob", "+1 Small Blob HP" },
@@ -1897,11 +1896,11 @@ function CyborgWeapons_Assimilate:GetSkillEffect(p1,p2)
 	if mission then
 		if not mission.AssimilateDamage then mission.AssimilateDamage = SpaceDamage(point) end
 		if self.HealSelf then
-			if Board:GetPawn(p1):IsFire() or Board:IsFire(p1) then mission.AssimilateDamage.iFire = EFFECT_CREATE end	
+			if Board:GetPawn(p1):IsFire() or Board:IsFire(p1) then ret:AddScript("GetCurrentMission().AssimilateDamage.iFire = EFFECT_CREATE") end	
 			--second check if on a fire space and with Thick Skin
-			if Board:GetPawn(p1):IsAcid() or (Board:IsAcid(p1) and not Board:GetTerrain(p1) == TERRAIN_WATER) then mission.AssimilateDamage.iAcid = EFFECT_CREATE end
+			if Board:GetPawn(p1):IsAcid() or (Board:IsAcid(p1) and not Board:GetTerrain(p1) == TERRAIN_WATER) then ret:AddScript("GetCurrentMission().AssimilateDamage.iAcid = EFFECT_CREATE") end
 			--second check is because the pawn might be flying above acid water, in which case it wouldn't make sense to purify it
-			if Board:IsSmoke(p1) then mission.AssimilateDamage.iSmoke = EFFECT_CREATE end 
+			if Board:IsSmoke(p1) then ret:AddScript("GetCurrentMission().AssimilateDamage.iSmoke = EFFECT_CREATE") end 
 			--only relevant with Camilla?
 			local healDamage = SpaceDamage(p1, -1)
 			healDamage.iFire = EFFECT_REMOVE
@@ -1931,9 +1930,9 @@ function CyborgWeapons_Assimilate:GetSkillEffect(p1,p2)
 				ret:AddScript(string.format("Board:RemoveItem(%s)", p2:GetString()))
 			end
 			ret:AddMelee(p1, damage)
-			if addFire then mission.AssimilateDamage.iFire = EFFECT_CREATE end
-			if addAcid then mission.AssimilateDamage.iAcid = EFFECT_CREATE end
-			if addSmoke then mission.AssimilateDamage.iSmoke = EFFECT_CREATE end
+			if addFire then ret:AddScript("GetCurrentMission().AssimilateDamage.iFire = EFFECT_CREATE") end
+			if addAcid then ret:AddScript("GetCurrentMission().AssimilateDamage.iAcid = EFFECT_CREATE") end
+			if addSmoke then ret:AddScript("GetCurrentMission().AssimilateDamage.iSmoke = EFFECT_CREATE") end
 		end
 	end        
 	return ret	
@@ -2030,7 +2029,7 @@ function BoostingEggHatch:GetSkillEffect(p1,p2)
 	local spawn
 	local parentId
 	for i = 0, 2 do
-		if Board:GetPawn(i):GetWeaponType(1) == "CyborgWeapons_Reproduce" or Board:GetPawn(i):GetWeaponType(2) == "CyborgWeapons_Reproduce" then
+		if Board:GetPawn(i):GetWeaponBaseType(1) == "CyborgWeapons_Reproduce" or Board:GetPawn(i):GetWeaponBaseType(2) == "CyborgWeapons_Reproduce" then
 			spawn = Board:GetPawn(i):GetType()
 			parentId = Board:GetPawn(i):GetId()
 			LOG(spawn)
@@ -2041,10 +2040,10 @@ function BoostingEggHatch:GetSkillEffect(p1,p2)
 	unit:SetMech(false)
 	unit:SetOwner(parentId)
 	Board:AddPawn(unit,%s)]], p1:GetString()))
-	--ret:AddScript(string.format("Board:GetPawn(%s):Kill(false)", Pawn:GetId()))
 	--if we kill it, it triggers the boosting death effect, so we fake its death
 	ret:AddScript(string.format("Board:RemovePawn(Board:GetPawn(%s))", selfId))
 	if Board:GetPawn(p1):GetMaxHealth() == 1 then ret:AddScript(string.format("Board:GetPawn(%s):SetMaxHealth(1)", p1:GetString())) end
+	ret:AddScript(string.format("Board:GetPawn(%s):SetActive(false)", p1:GetString()))
 	ret:AddAnimation(p1, "debris1d")
 	return ret
 end
@@ -2074,7 +2073,7 @@ function CyborgWeapons_Reproduce:GetSkillEffect(p1,p2)
 	local dir = GetDirection(p2 - p1)
 	local damage = SpaceDamage(p2, self.Damage)
 	local killedEgg = false
-	if Board:IsValid(p2) and not Board:IsBlocked(p2,PATH_PROJECTILE) then
+	if Board:IsValid(p2) and not Board:IsBlocked(p2,PATH_GROUND) then
 		damage.sPawn = "BoostingEgg"
 		damage.sAnimation = ""
 		damage.iDamage = 0
@@ -2114,15 +2113,7 @@ end
 --Uses SetPriorityTarget, but the fact it's a pawn means it can have a DeathEffect to remove it (as otherwise Vek would target an empty tile forever).
 --Literally a Pokemon move.
 
-
-
--- local function onPawnAnimationAdded(pawnId, animId, suffix)
-    -- LOG("onPawnAnimationAdded", "pawnId:", pawnId, "animId:", animId, "suffix:", suffix)
--- end
-
--- CustomAnim.events.onPawnAnimationAdded:subscribe(onPawnAnimationAdded)
-
-
+modApi:addWeaponDrop("CyborgWeapons_Molt")
 
 CyborgWeapons_ShedTail = Skill:new{  
 	Name = "Shed Tail",
